@@ -1,0 +1,60 @@
+import pandas as pd
+import numpy as np
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import RobustScaler, PowerTransformer, OrdinalEncoder
+from sklearn.impute import KNNImputer
+from sklearn.decomposition import TruncatedSVD
+from sklearn.compose import ColumnTransformer
+from sklearn.pipeline import Pipeline
+from sklearn.ensemble import GradientBoostingClassifier
+from sklearn.metrics import classification_report
+
+# Load the dataset
+data = pd.read_csv('your_dataset.csv')  # Replace with your actual dataset path
+
+# Define target variable and features
+X = data.drop('target', axis=1)  # Replace 'target' with your target column
+y = data['target']
+
+# Split the data into training and testing sets
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# Identify numeric and categorical columns
+numeric_features = X.select_dtypes(include=['int64', 'float64']).columns
+categorical_features = X.select_dtypes(include=['object']).columns
+
+# Define preprocessing for numeric features
+numeric_pipeline = Pipeline(steps=[
+    ('imputer', KNNImputer(n_neighbors=5)),  # Impute missing values using K-Nearest Neighbors
+    ('scaler', RobustScaler())  # Scale features using the median and interquartile range to handle outliers
+])
+
+# Define preprocessing for categorical features
+categorical_pipeline = Pipeline(steps=[
+    ('imputer', SimpleImputer(strategy='constant', fill_value='missing')),  # Impute missing values with a placeholder string
+    ('encoder', OrdinalEncoder())  # Convert categorical variables to ordinal integers
+])
+
+# Combine preprocessing pipelines into a full column transformer
+preprocessor = ColumnTransformer(
+    transformers=[
+        ('num', numeric_pipeline, numeric_features),
+        ('cat', categorical_pipeline, categorical_features)
+    ])
+
+# Define the complete pipeline with preprocessing and model
+pipeline = Pipeline(steps=[
+    ('preprocessor', preprocessor),
+    ('dim_reduction', TruncatedSVD(n_components=10)),  # Reduce dimensions while preserving variance
+    ('classifier', GradientBoostingClassifier(random_state=42))  # Use Gradient Boosting for classification
+])
+
+# Fit the model
+pipeline.fit(X_train, y_train)
+
+# Predict on the test set
+y_pred = pipeline.predict(X_test)
+
+# Evaluate the model
+report = classification_report(y_test, y_pred)
+print(report)
